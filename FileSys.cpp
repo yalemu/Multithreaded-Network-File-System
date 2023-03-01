@@ -43,7 +43,7 @@ void FileSys::mkdir(const char *name)
 
   //check if name already exists - linear search
   for(int i = 0; i < currentTempBlock.num_entries; i++)  {
-    if(strcmp(currentTempBlock.dir_entries[i], name))  {//checks if dir already exists
+    if(strcmp(currentTempBlock.dir_entries[i], name) = 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
       return -1;
     }
@@ -89,7 +89,7 @@ void FileSys::cd(const char *name)
   bfs.read_block(curr_dir, (void*) &tempDir);
 
   for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i], name))  {//checks if target directory exists in current directory
+    if(strcmp(tempDir.dir_entries[i], name) == 0)  {//checks if target directory exists in current directory
       read_block(tempDir.entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if(cdDir.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
         curr_dir = tempDir.entries[i].block_num;// sets current directory to new block
@@ -114,7 +114,7 @@ void FileSys::rmdir(const char *name)
   bfs.read_block(curr_dir, (void*) &tempDir);
 
   for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i], name))  {//checks if target directory exists in current directory
+    if(strcmp(tempDir.dir_entries[i], name) == 0)  {//checks if target directory exists in current directory
       read_block(tempDir.entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if((cdDir.magic == DIR_MAGIC_NUM))  { //checks if block loaded is a Directory block
         if(cdDir.num_entries == 0)  {
@@ -184,7 +184,7 @@ void FileSys::create(const char *name)
 
   //check if name already exists - linear search
   for(int i = 0; i < currBlock.num_entries; i++)  {
-    if(strcmp(currBlock.dir_entries[i], name))  {//checks if dir already exists
+    if(strcmp(currBlock.dir_entries[i], name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
       return -1;
     }
@@ -230,6 +230,34 @@ void FileSys::create(const char *name)
 // append data to a data file
 void FileSys::append(const char *name, const char *data)
 {
+  dirblock_t currBlock;
+  inode_t tempBlock;
+  int dataSize = strlen(name);;
+  bfs.read_block(curr_dir, &currBlock);// read current directory
+
+  for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
+    if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if names match
+      bfs.read_block(currBlock.dir_entries[i], &tempBlock); //reads block to check meta data 
+      if(tempBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
+        //file target found
+        if()  {//check if append would execeed MAX_FILE_SIZE
+          if()  {//if there is already blocks of data, maybe need to be filled
+
+          }
+          else {//fresh append, with no blocks of data stored
+
+          }
+        }
+        else  { 
+          //MAX FILE LIMIT WILL BE REACHED WITH APPEND
+          return -1;
+        }
+      }
+    }     
+  }
+
+  //CANNOT FIND TARGET FILE
+  return -1;
 }
 
 // display the contents of a data file
