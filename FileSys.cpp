@@ -33,20 +33,20 @@ void FileSys::mkdir(const char *name)
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
     //NAME EXCEEDS MAX FILE NAME SIZE ERROR
-    return -1;
+    return;
   }
 
   //check if max directory entries exceeded
   if(currentTempBlock.num_entries >= MAX_DIR_ENTRIES) {
     //MAX DIR ENTRIES EXCEEDED ERROR
-    return -1;
+    return;
   }
 
   //check if name already exists - linear search
   for(int i = 0; i < currentTempBlock.num_entries; i++)  {
     if(strcmp(currentTempBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
-      return -1;
+      return;
     }
   }
   
@@ -54,7 +54,7 @@ void FileSys::mkdir(const char *name)
   short blockID = bfs.get_free_block();
   if(blockID <= 0)  { //check that given block is not superblock
     //CANNOT GET FREE BLOCK ERROR
-    return -1;
+    return;
   }
 
 
@@ -90,7 +90,7 @@ void FileSys::cd(const char *name)
   bfs.read_block(curr_dir, (void*) &tempDir);
 
   for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i], name) == 0)  {//checks if target directory exists in current directory
+    if(strcmp(tempDir.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
       bfs.read_block(tempDir.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if(cdDir.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
         curr_dir = tempDir.dir_entries[i].block_num;// sets current directory to new block
@@ -99,7 +99,7 @@ void FileSys::cd(const char *name)
   }
 
   //DIRECTORY NOT FOUND ERROR
-  return -1;
+  return;
 }
 
 // switch to home directory
@@ -135,14 +135,14 @@ void FileSys::rmdir(const char *name)
         }
         else  {
           //DIRECTORY NOT EMPTY ERROR
-          return -1;
+          return;
         }
       }
     }
   }
 
   //ERROR DIRECTORY NOT FOUND
-  return -1;
+  return;
 }
 
 // list the contents of current directory
@@ -164,7 +164,7 @@ void FileSys::ls()
     }
     else  {
       //UNKNOWN BLOCK TYPE ERROR
-      return -1;
+      return;
     }
   }
 
@@ -180,21 +180,21 @@ void FileSys::create(const char *name)
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
     //NAME EXCEEDS MAX FILE NAME SIZE ERROR
-    return -1;
+    return;
   }
 
   //check if name already exists - linear search
   for(int i = 0; i < currBlock.num_entries; i++)  {
-    if(strcmp(currBlock.dir_entries[i], name) == 0)  {//checks if dir already exists
+    if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
-      return -1;
+      return;
     }
   }
 
   //check if max directory entries exceeded
   if(currBlock.num_entries >= MAX_DIR_ENTRIES) {
     //MAX DIR ENTRIES EXCEEDED ERROR
-    return -1;
+    return;
   }
   //all precondtions passed, now make inode for file
   
@@ -202,7 +202,7 @@ void FileSys::create(const char *name)
   short newBlock = bfs.get_free_block();
   if(newBlock <= 0)  { //check that given block is not superblock
     //CANNOT GET FREE BLOCK ERROR
-    return -1;
+    return;
   }
 
 
@@ -267,14 +267,14 @@ void FileSys::append(const char *name, const char *data)
         }
         else  { 
           //MAX FILE LIMIT WILL BE REACHED WITH APPEND
-          return -1;
+          return;
         }
       }
     }     
   }
 
   //CANNOT FIND TARGET FILE
-  return -1;
+  return;
 }
 
 // display the contents of a data file
