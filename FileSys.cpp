@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <unistd.h>
+#include <cmath>
 using namespace std;
 
 #include "FileSys.h"
@@ -43,7 +44,7 @@ void FileSys::mkdir(const char *name)
 
   //check if name already exists - linear search
   for(int i = 0; i < currentTempBlock.num_entries; i++)  {
-    if(strcmp(currentTempBlock.dir_entries[i], name) = 0)  {//checks if dir already exists
+    if(strcmp(currentTempBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
       return -1;
     }
@@ -90,9 +91,9 @@ void FileSys::cd(const char *name)
 
   for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
     if(strcmp(tempDir.dir_entries[i], name) == 0)  {//checks if target directory exists in current directory
-      read_block(tempDir.entries[i].block_num, (void*) &cdDir); //loads block to check block type
+      bfs.read_block(tempDir.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if(cdDir.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
-        curr_dir = tempDir.entries[i].block_num;// sets current directory to new block
+        curr_dir = tempDir.dir_entries[i].block_num;// sets current directory to new block
       }
     }
   }
@@ -114,23 +115,23 @@ void FileSys::rmdir(const char *name)
   bfs.read_block(curr_dir, (void*) &tempDir);
 
   for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i], name) == 0)  {//checks if target directory exists in current directory
-      read_block(tempDir.entries[i].block_num, (void*) &cdDir); //loads block to check block type
+    if(strcmp(tempDir.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
+      bfs.read_block(tempDir.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if((cdDir.magic == DIR_MAGIC_NUM))  { //checks if block loaded is a Directory block
-        if(cdDir.num_entries == 0)  {
+        if(cdDir.num_entries == 0)  { //ensure that directory is empty
         //found target directory
 
           //give back disk block
-          bfs.reclaim_block(cdDir.block_num)
+          bfs.reclaim_block(tempDir.dir_entries[i].block_num);
           
           //update parent directory metadata
-          tempDir.entries[i].num_entries--;
+          tempDir.num_entries--;
           for(int x = i; x <= tempDir.num_entries; x++)  {
             tempDir.dir_entries[x] = tempDir.dir_entries[x + 1];
           }
           
           //write block with changes to disk
-          write_block(tempDir.block_num, (*void) &tempDir);
+          bfs.write_block(curr_dir, (void*) &tempDir);
         }
         else  {
           //DIRECTORY NOT EMPTY ERROR
@@ -153,7 +154,7 @@ void FileSys::ls()
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
-    bfs.read_block(currBlock.dir_entries[i], &tempBlock); //reads block to check meta data
+    bfs.read_block(currBlock.dir_entries[i].block_num, &tempBlock); //reads block to check meta data
 
     if(tempBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
       cout << tempBlock.dir_entries[i].name << "/" << endl;
@@ -174,7 +175,7 @@ void FileSys::create(const char *name)
 {
   dirblock_t currBlock;
 
-  bfs.read_block(curr_dir. &currBlock);
+  bfs.read_block(curr_dir, &currBlock);
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
@@ -199,7 +200,7 @@ void FileSys::create(const char *name)
   
   //get new block to hold inode in current directory
   short newBlock = bfs.get_free_block();
-  if(blockID <= 0)  { //check that given block is not superblock
+  if(newBlock <= 0)  { //check that given block is not superblock
     //CANNOT GET FREE BLOCK ERROR
     return -1;
   }
@@ -215,14 +216,14 @@ void FileSys::create(const char *name)
   }
 
   //update parent meta data 
-  currBlock.size++;
-  currBlock.dir_entries[size - 1].block_num = newBlock;
-  strcpy(currBlock.dir_entries[size - 1].name, name);
+  currBlock.num_entries++;
+  currBlock.dir_entries[currBlock.num_entries - 1].block_num = newBlock;
+  strcpy(currBlock.dir_entries[currBlock.num_entries - 1].name, name);
 
 
   //write changed blocks to disk
-  bfs.write_block(curr_dir, (void*) currBlock);
-  bfs.write_block(newBlock, (void*) newFileInode);
+  bfs.write_block(curr_dir, (void*) &currBlock);
+  bfs.write_block(newBlock, (void*) &newFileInode);
 
 
 }
@@ -230,9 +231,15 @@ void FileSys::create(const char *name)
 // append data to a data file
 void FileSys::append(const char *name, const char *data)
 {
+  int appDataSize = strlen(data);
+
+  if(appDataSize == 0)  { //no point in continuing 
+    return NULL;
+  }
+
   dirblock_t currBlock;
   inode_t tempBlock;
-  int dataSize = strlen(name);;
+  int totalNewBlocks = 0;
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
@@ -241,11 +248,21 @@ void FileSys::append(const char *name, const char *data)
       if(tempBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
         //file target found
         if()  {//check if append would execeed MAX_FILE_SIZE
-          if()  {//if there is already blocks of data, maybe need to be filled
+          if(tempBlock.size != 0)  {//if there is already blocks of data, maybe need to be filled
+
+
 
           }
           else {//fresh append, with no blocks of data stored
-
+            if(appDataSize <= 128)  { //allocate 1 block for data
+              datablock_t* newDataBlock = new datablock_t;
+              tempBlock.blocks[(size/BLOCK_SIZE) + 1] = bfs.get_free_block();
+            }
+            else  { 
+              totalNewBlocks = ceil(static_cast<double>(appDataSize) / BLOCK_SIZE);
+              
+              
+            }
           }
         }
         else  { 
