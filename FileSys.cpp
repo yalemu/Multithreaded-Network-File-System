@@ -379,6 +379,9 @@ void FileSys::cat(const char *name)
       }
     }     
   }
+  
+  //NOT FOUND ERROR
+  return;
 }
 
 // display the first N bytes of the file
@@ -429,6 +432,9 @@ void FileSys::head(const char *name, unsigned int n)
       }
     }     
   }
+  
+  //NOT FOUND ERROR
+  return;
 }
 
 // delete a data file
@@ -439,6 +445,31 @@ void FileSys::rm(const char *name)
 // display stats about file or directory
 void FileSys::stat(const char *name)
 {
+  dirblock_t currentDirectory;
+  dirblock_t testDir;
+  inode_t currentInode;
+
+
+ bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
+    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void* )&testDir); //reads block to check meta data 
+      if(testDir.magic == INODE_MAGIC_NUM) {//entry is a inode
+        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void* ) &currentInode);
+        cout << "Inode block: " << currentDirectory.dir_entries[i].block_num << endl;
+        cout << "Bytes in file: " << currentInode.size << endl;
+        cout << "Number of blocks: " << (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1)) << endl;
+        cout << "First block: " << currentInode.blocks[0];
+      }
+      else  { //entry is a directory
+        cout << "Directory name: " << currentDirectory.dir_entries[i].name << endl;
+        cout << "Directory block: " << currentDirectory.dir_entries[i].block_num << endl;
+      }
+    }     
+  }
+
+  //NOT FOUND ERROR
+  return;
 }
 
 // HELPER FUNCTIONS (optional)
