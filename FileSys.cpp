@@ -364,7 +364,7 @@ void FileSys::cat(const char *name)
 
         leftOverBytes = (currentInode.size - (totNumBlocks - 1)*BLOCK_SIZE);
         //read final block seperately in case not full
-        bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void *) &currentDataBlock);
         for(int j=0; j < leftOverBytes; j++) {
           outputMsg = outputMsg + currentDataBlock.data[j];
         }
@@ -384,6 +384,51 @@ void FileSys::cat(const char *name)
 // display the first N bytes of the file
 void FileSys::head(const char *name, unsigned int n)
 {
+  dirblock_t currentDirectory;
+  inode_t currentInode;
+  datablock_t currentDataBlock;
+  int printSize;
+  string outputMsg = "";
+  int totNumBlocks;
+  int leftOverBytes = 0;
+
+ bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
+    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
+        if(n >= currentInode.size)  {
+          //print everything in file
+          printSize = currentInode.size;      
+        }
+        else  {
+          //print n bytes
+          printSize = n;
+        }
+
+        totNumBlocks = (printSize/BLOCK_SIZE) + 1;
+        for(int i = 0; i < totNumBlocks - 1; i++) {
+          bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+          for(int j=0; j < BLOCK_SIZE; j++) {
+            outputMsg = outputMsg + currentDataBlock.data[j];
+          }
+        }
+        leftOverBytes = (printSize - (totNumBlocks - 1)*BLOCK_SIZE);
+        //read final block seperately in case not full
+        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void *) &currentDataBlock);
+        for(int j=0; j < leftOverBytes; j++) {
+          outputMsg = outputMsg + currentDataBlock.data[j];
+        }   
+
+        //output message contains the file data
+
+      }
+      else  {
+        //NOT A DIRECTORY
+        return;
+      }
+    }     
+  }
 }
 
 // delete a data file
