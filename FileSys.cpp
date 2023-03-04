@@ -234,7 +234,7 @@ void FileSys::append(const char *name, const char *data)
   int appDataSize = strlen(data);
 
   if(appDataSize == 0)  { //no point in continuing 
-    return NULL;
+    return ;
   }
 
   dirblock_t currBlock;
@@ -258,7 +258,7 @@ void FileSys::append(const char *name, const char *data)
 
 
         currentDataBlock = ceil(static_cast<double>(tempInodeBlock.size) / BLOCK_SIZE); //find total number of used blocks
-        nextDataBytesLeft = (tempInodeBlock.size - (currentDataBlock - 1)*BLOCK_SIZE); //find if there is/amount of used bytes in last data block
+        currentDataBytesLeft = (tempInodeBlock.size - (currentDataBlock - 1)*BLOCK_SIZE); //find if there is/amount of used bytes in last data block
         totNeededBlocks = ceil(static_cast<double>(appDataSize + tempInodeBlock.size) / BLOCK_SIZE);  //total blocks needed to handle append data
 
         if((tempInodeBlock.size + appDataSize) > MAX_FILE_SIZE)  {//check if append would execeed MAX_FILE_SIZE
@@ -267,14 +267,14 @@ void FileSys::append(const char *name, const char *data)
 
             bfs.read_block(tempInodeBlock.blocks[currentDataBlock - 1], &tempDataBlock);  //get last data block to append data to
 
-            for(int z = nextDataBytesLeft; ((nextDataBytesLeft < BLOCK_SIZE) || (data[dataBookmark] != '\0')))  { //fill up last blocks empty space 
-              tempDataBlock[z] = data[dataBookmark];
+            for(int z = currentDataBytesLeft; ((z < BLOCK_SIZE) || (data[dataBookmark] != '\0')); z++ )  { //fill up last blocks empty space 
+              tempDataBlock.data[z] = data[dataBookmark];
               dataBookmark++;
             }
             
             //write updated block to memory
             freeBlockNum = bfs.get_free_block();
-            if(newBlock <= 0)  { //check that given block is not superblock
+            if(freeBlockNum <= 0)  { //check that given block is not superblock
               //CANNOT GET FREE BLOCK ERROR
               return;
             }
@@ -297,12 +297,12 @@ void FileSys::append(const char *name, const char *data)
 
           datablock_t* dataArr = new datablock_t[totalNewBlocks];
           for(int v = 0; v < totalNewBlocks; v++) {
-            for(t = 0; t < BLOCK_SIZE; t++) { //store data into datablock
+            for(int t = 0; t < BLOCK_SIZE; t++) { //store data into datablock
               dataArr[v].data[t] = data[dataBookmark];
               dataBookmark++; //point to next char in data
             }
             freeBlockNum = bfs.get_free_block();
-            if(newBlock <= 0)  { //check that given block is not superblock
+            if(freeBlockNum <= 0)  { //check that given block is not superblock
               //CANNOT GET FREE BLOCK ERROR
               return;
             }
@@ -359,4 +359,3 @@ void FileSys::stat(const char *name)
 }
 
 // HELPER FUNCTIONS (optional)
-
