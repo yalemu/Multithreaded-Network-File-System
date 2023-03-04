@@ -27,8 +27,8 @@ void FileSys::unmount() {
 // make a directory
 void FileSys::mkdir(const char *name)
 {
-  dirblock_t currentTempBlock;
-  bfs.read_block(curr_dir, (void*) &currentTempBlock);
+  dirblock_t currenttempInodeBlock;
+  bfs.read_block(curr_dir, (void*) &currenttempInodeBlock);
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
@@ -37,14 +37,14 @@ void FileSys::mkdir(const char *name)
   }
 
   //check if max directory entries exceeded
-  if(currentTempBlock.num_entries >= MAX_DIR_ENTRIES) {
+  if(currenttempInodeBlock.num_entries >= MAX_DIR_ENTRIES) {
     //MAX DIR ENTRIES EXCEEDED ERROR
     return;
   }
 
   //check if name already exists - linear search
-  for(int i = 0; i < currentTempBlock.num_entries; i++)  {
-    if(strcmp(currentTempBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
+  for(int i = 0; i < currenttempInodeBlock.num_entries; i++)  {
+    if(strcmp(currenttempInodeBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
       return;
     }
@@ -70,14 +70,14 @@ void FileSys::mkdir(const char *name)
 
 
   //update parent directory meta data
-  currentTempBlock.dir_entries[currentTempBlock.num_entries].block_num = blockID;
-  strcpy(currentTempBlock.dir_entries[currentTempBlock.num_entries].name, name);
-  currentTempBlock.num_entries++;
+  currenttempInodeBlock.dir_entries[currenttempInodeBlock.num_entries].block_num = blockID;
+  strcpy(currenttempInodeBlock.dir_entries[currenttempInodeBlock.num_entries].name, name);
+  currenttempInodeBlock.num_entries++;
 
   
 
   //write blocks that were changed back to disk
-  bfs.write_block(curr_dir, (void*) &currentTempBlock);
+  bfs.write_block(curr_dir, (void*) &currenttempInodeBlock);
   bfs.write_block(blockID, (void*) &newDir);
 
 }
@@ -149,18 +149,18 @@ void FileSys::rmdir(const char *name)
 void FileSys::ls()
 {
   dirblock_t currBlock;
-  dirblock_t tempBlock;
+  dirblock_t tempInodeBlock;
 
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
-    bfs.read_block(currBlock.dir_entries[i].block_num, &tempBlock); //reads block to check meta data
+    bfs.read_block(currBlock.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data
 
-    if(tempBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
-      cout << tempBlock.dir_entries[i].name << "/" << endl;
+    if(tempInodeBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
+      cout << tempInodeBlock.dir_entries[i].name << "/" << endl;
     }
-    else if(tempBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
-      cout << tempBlock.dir_entries[i].name << "/" << endl;
+    else if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
+      cout << tempInodeBlock.dir_entries[i].name << "/" << endl;
     }
     else  {
       //UNKNOWN BLOCK TYPE ERROR
@@ -238,30 +238,57 @@ void FileSys::append(const char *name, const char *data)
   }
 
   dirblock_t currBlock;
-  inode_t tempBlock;
+  inode_t tempInodeBlock;
+  datablock_t tempDataBlock;
+  bool dirtyAppend = false;
   int totalNewBlocks = 0;
+  int currentDataBlock = 0;
+  int currentDataBytesLeft = 0;
+  int totNeededBlocks = 0;
+  int dataBookmark = 0;
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
     if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currBlock.dir_entries[i], &tempBlock); //reads block to check meta data 
-      if(tempBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
+      bfs.read_block(currBlock.dir_entries[i], &tempInodeBlock); //reads block to check meta data 
+      if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
+
         //file target found
-        if()  {//check if append would execeed MAX_FILE_SIZE
-          if(tempBlock.size != 0)  {//if there is already blocks of data, maybe need to be filled
+        currentDataBlock = ceil(static_cast<double>(tempInodeBlock.size) / BLOCK_SIZE); //find total number of used blocks
+        nextDataBytesLeft = (tempInodeBlock.size - (currentDataBlock - 1)*BLOCK_SIZE); //find if there is/amount of free bytes in last data block
+        totNeededBlocks = ceil(static_cast<double>(appDataSize + tempInodeBlock.size) / BLOCK_SIZE);
 
-
-
-          }
-          else {//fresh append, with no blocks of data stored
-            if(appDataSize <= 128)  { //allocate 1 block for data
-              datablock_t* newDataBlock = new datablock_t;
-              tempBlock.blocks[(size/BLOCK_SIZE) + 1] = bfs.get_free_block();
+        if((tempInodeBlock.size + appDataSize) > MAX_FILE_SIZE)  {//check if append would execeed MAX_FILE_SIZE
+          
+          if(currentDataBytesLeft != 0)  {//if there is already blocks of data, maybe need to be filled
+            dirtyAppend = true;
+            bfs.read_block(tempInodeBlock.blocks[currentDataBlock - 1], &tempDataBlock);
+            for(int z = nextDataBytesLeft; ((nextDataBytesLeft < BLOCK_SIZE) || (data[dataBookmark] != '\0')))  { //fill up last blocks empty space 
+              tempDataBlock[z] = data[dataBookmark];
+              dataBookmark++;
             }
-            else  { 
+
+            
+
+            totalNewBlocks = totNeededBlocks - currentDataBlock;
+          }
+          else {//fresh append, with prev blocks already full of stored data
+            dirtyAppend = false;
+
+            if(appDataSize <= 128)  { //allocate 1 block for data
+              totalNewBlocks = 1;
+            }
+            else  { //need to allocate multiple blocks
               totalNewBlocks = ceil(static_cast<double>(appDataSize) / BLOCK_SIZE);
-              
-              
+            }
+          }
+
+          datablock_t* dataArr = new datablock_t[totalNewBlocks];
+          for(int v = 0; v < totalNewBlocks; v++) {
+            for(t = 0; t < BLOCK_SIZE; t++) {
+              dataArr[v].blocks[t] = data[dataBookmark];
+              bfs.write_block
+              dataBookmark++;
             }
           }
         }
@@ -269,6 +296,13 @@ void FileSys::append(const char *name, const char *data)
           //MAX FILE LIMIT WILL BE REACHED WITH APPEND
           return;
         }
+        bfs.write
+        tempInodeBlock.size = tempInodeBlock.size + appDataSize;
+
+      }
+      else  {
+        //NOT A DIRECTORY
+        return;
       }
     }     
   }
