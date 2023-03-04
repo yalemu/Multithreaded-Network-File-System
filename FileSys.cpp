@@ -341,6 +341,44 @@ void FileSys::append(const char *name, const char *data)
 // display the contents of a data file
 void FileSys::cat(const char *name)
 {
+  dirblock_t currentDirectory;
+  inode_t currentInode;
+  datablock_t currentDataBlock;
+  string outputMsg = "";
+  int totNumBlocks;
+  int leftOverBytes = 0;
+
+ bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
+    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
+        //file target found
+        totNumBlocks = (currentInode.size/BLOCK_SIZE) + 1;
+        for(int i = 0; i < totNumBlocks - 1; i++) {
+          bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+          for(int j=0; j < BLOCK_SIZE; j++) {
+            outputMsg = outputMsg + currentDataBlock.data[j];
+          }
+        }
+
+        leftOverBytes = (currentInode.size - (totNumBlocks - 1)*BLOCK_SIZE);
+        //read final block seperately in case not full
+        bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+        for(int j=0; j < leftOverBytes; j++) {
+          outputMsg = outputMsg + currentDataBlock.data[j];
+        }
+
+        //output Message contains the file data
+
+
+      }
+      else  {
+        //NOT A DIRECTORY
+        return;
+      }
+    }     
+  }
 }
 
 // display the first N bytes of the file
