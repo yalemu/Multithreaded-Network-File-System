@@ -240,17 +240,19 @@ void FileSys::append(const char *name, const char *data)
   dirblock_t currBlock;
   inode_t tempInodeBlock;
   datablock_t tempDataBlock;
-  bool dirtyAppend = false;
+
   int totalNewBlocks = 0;
   int currentDataBlock = 0;
   int currentDataBytesLeft = 0;
   int totNeededBlocks = 0;
   int dataBookmark = 0;
+
+  int freeBlockNum = 0;
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
     if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currBlock.dir_entries[i], &tempInodeBlock); //reads block to check meta data 
+      bfs.read_block(currBlock.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data 
       if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
 
         //file target found
@@ -261,20 +263,25 @@ void FileSys::append(const char *name, const char *data)
         if((tempInodeBlock.size + appDataSize) > MAX_FILE_SIZE)  {//check if append would execeed MAX_FILE_SIZE
           
           if(currentDataBytesLeft != 0)  {//if there is already blocks of data, maybe need to be filled
-            dirtyAppend = true;
+
             bfs.read_block(tempInodeBlock.blocks[currentDataBlock - 1], &tempDataBlock);
             for(int z = nextDataBytesLeft; ((nextDataBytesLeft < BLOCK_SIZE) || (data[dataBookmark] != '\0')))  { //fill up last blocks empty space 
               tempDataBlock[z] = data[dataBookmark];
               dataBookmark++;
             }
-
             
+            freeBlockNum = bfs.get_free_block();
+            if(newBlock <= 0)  { //check that given block is not superblock
+              //CANNOT GET FREE BLOCK ERROR
+              return;
+            }
+
+            tempInodeBlock.blocks[currentDataBlock - 1] = freeBlockNum; //put new block into inode
+            bfs.write_block(freeBlockNum, &tempDataBlock);  //write filled data block with to disk
 
             totalNewBlocks = totNeededBlocks - currentDataBlock;
           }
           else {//fresh append, with prev blocks already full of stored data
-            dirtyAppend = false;
-
             if(appDataSize <= 128)  { //allocate 1 block for data
               totalNewBlocks = 1;
             }
@@ -285,18 +292,31 @@ void FileSys::append(const char *name, const char *data)
 
           datablock_t* dataArr = new datablock_t[totalNewBlocks];
           for(int v = 0; v < totalNewBlocks; v++) {
-            for(t = 0; t < BLOCK_SIZE; t++) {
-              dataArr[v].blocks[t] = data[dataBookmark];
-              bfs.write_block
-              dataBookmark++;
+            for(t = 0; t < BLOCK_SIZE; t++) { //store data into datablock
+              dataArr[v].data[t] = data[dataBookmark];
+              dataBookmark++; //point to next char in data
             }
+            freeBlockNum = bfs.get_free_block();
+            if(newBlock <= 0)  { //check that given block is not superblock
+              //CANNOT GET FREE BLOCK ERROR
+              return;
+            }
+            tempInodeBlock.blocks[currentDataBlock] = freeBlockNum; //put new block into inode
+            bfs.write_block(freeBlockNum, &dataArr[v]);  //write new block with data block info to disk
+            currentDataBlock++; //update what block is needed to be updated next
           }
+
+          //update inode metadata
+          tempInodeBlock.size = tempInodeBlock.size + appDataSize;
+          bfs.write_block(currBlock.dir_entries[i].block_num, &tempInodeBlock);
+
+
         }
         else  { 
           //MAX FILE LIMIT WILL BE REACHED WITH APPEND
           return;
         }
-        bfs.write
+
         tempInodeBlock.size = tempInodeBlock.size + appDataSize;
 
       }
