@@ -355,8 +355,8 @@ void FileSys::cat(const char *name)
       if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
         //file target found
         totNumBlocks = (currentInode.size/BLOCK_SIZE) + 1;
-        for(int i = 0; i < totNumBlocks - 1; i++) {
-          bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+        for(int z = 0; z < totNumBlocks - 1; z++) {
+          bfs.read_block(currentInode.blocks[z], (void *) &currentDataBlock);
           for(int j=0; j < BLOCK_SIZE; j++) {
             outputMsg = outputMsg + currentDataBlock.data[j];
           }
@@ -410,8 +410,8 @@ void FileSys::head(const char *name, unsigned int n)
         }
 
         totNumBlocks = (printSize/BLOCK_SIZE) + 1;
-        for(int i = 0; i < totNumBlocks - 1; i++) {
-          bfs.read_block(currentInode.blocks[i], (void *) &currentDataBlock);
+        for(int z = 0; z < totNumBlocks - 1; z++) {
+          bfs.read_block(currentInode.blocks[z], (void *) &currentDataBlock);
           for(int j=0; j < BLOCK_SIZE; j++) {
             outputMsg = outputMsg + currentDataBlock.data[j];
           }
@@ -440,6 +440,46 @@ void FileSys::head(const char *name, unsigned int n)
 // delete a data file
 void FileSys::rm(const char *name)
 {
+  //NOTE: ASSUMING THAT I CAN JUST GIVE BLOCK BACK AND NOT HAVE TO DELETE THE MEMORY
+  dirblock_t currentDirectory;
+  inode_t currentInode;
+  int totalNumBlocks = 0;
+  short inodeBlockNum = 0;
+
+ bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
+   if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
+
+
+        //update inode parent directory meta data
+        inodeBlockNum = currentDirectory.dir_entries[i].block_num;
+        for(int j = i; j < currentDirectory.num_entries; j++) { //shift down the entries in parent directory
+          currentDirectory.dir_entries[j] = currentDirectory.dir_entries[j+1];
+        }
+        currentDirectory.num_entries--;
+        bfs.write_block(curr_dir, (void*) &currentDirectory);
+
+        totalNumBlocks = ceil(static_cast<double>(currentInode.size/BLOCK_SIZE));
+        //reclaim Inode data blocks
+        for(int z = 0; z < totalNumBlocks; z++) {
+          bfs.reclaim_block(currentInode.blocks[z]);
+        }
+        //reclaim inode block
+        bfs.reclaim_block(inodeBlockNum);
+
+      }
+      else  { 
+       //ENTRY IS A DIRECTORY
+       return;
+      }
+    }     
+  }
+
+  //NOT FOUND ERROR
+  return;
+  
 }
 
 // display stats about file or directory
