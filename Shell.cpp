@@ -19,62 +19,89 @@ void Shell::mountNFS(string fs_loc) {
 // Unmount the network file system if it was mounted
 void Shell::unmountNFS() {
 	// close the socket if it was mounted
+    if (is_mounted) {
+        close(cs_sock);
+        is_mounted = false;
+    }
 }
 
 // Remote procedure call on mkdir
 void Shell::mkdir_rpc(string dname) {
   // to implement
+  string command = "mkdir " + dname + "\n\r";
+  cmmdprint(command, "mkdir");
 }
 
 // Remote procedure call on cd
 void Shell::cd_rpc(string dname) {
   // to implement
+  string command = "cd " + dname + "\n\r";
+  cmmdprint(command, "cd");
 }
 
 // Remote procedure call on home
 void Shell::home_rpc() {
   // to implement
+  string command = "home " + "\n\r";
+  cmmdprint(command, "home");
 }
 
 // Remote procedure call on rmdir
 void Shell::rmdir_rpc(string dname) {
   // to implement
-}
+  string command = "rmdir " + dname + "\n\r";
+  cmmdprint(command, "rmdir");
+} 
 
 // Remote procedure call on ls
 void Shell::ls_rpc() {
   // to implement
+  string command = "ls" + "\n\r";
+  cmmdprint(command, "ls");
 }
 
 // Remote procedure call on create
 void Shell::create_rpc(string fname) {
   // to implement
+  string command = "create " + fname + "\n\r";
+  cmmdprint(command, "create");
 }
 
 // Remote procedure call on append
 void Shell::append_rpc(string fname, string data) {
   // to implement
+  string command = "append" + fname + " " + data + "\n\r";
+  cmmdprint(command, "append");
 }
 
 // Remote procesure call on cat
 void Shell::cat_rpc(string fname) {
   // to implement
+  string command = "cat" + fname + "\n\r";
+  cmmdprint(command, "cat");
 }
 
 // Remote procedure call on head
 void Shell::head_rpc(string fname, int n) {
   // to implement
+  string command = "head " + fname + " " + to_string(n) + "\n\r";
+  cmmdprint(command, "head");
 }
 
 // Remote procedure call on rm
 void Shell::rm_rpc(string fname) {
   // to implement
+  string command = "rm" + fname + "\n\r";
+  cmmdprint(command, "rm");
 }
 
 // Remote procedure call on stat
 void Shell::stat_rpc(string fname) {
   // to implement
+  string command = "stat" + fname + "\n\r";
+  cmmdprint(command, "stat");
 }
+
 
 // Executes the shell until the user quits.
 void Shell::run()
