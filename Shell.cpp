@@ -261,3 +261,102 @@ Shell::Command Shell::parse_command(string command_str)
   return command;
 }
 
+
+
+void Shell::network_command(string message, bool can_be_empty)
+{
+  string format = message + endline;
+
+  // Send command over the network (through the provided socket)
+  if (send(cs_sock, format.c_str(), format.length(), 0) == -1) {
+    perror("Error sending message");
+    exit(1);
+  }
+
+  // Receive response from server
+  int BUFFER_SIZE = 1024;
+  char response_buffer[BUFFER_SIZE];
+  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
+  if (bytes_received == -1) {
+    perror("Error receiving message");
+    exit(1);
+  }
+
+  response_buffer[bytes_received] = '\0';
+  string response = response_buffer;
+  
+  string code, length, body;
+  size_t lenPos = response.find("\r\n");
+  if (lenPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  code = response.substr(0, lenPos);
+  size_t bodyPos = response.find("\r\n", lenPos + 2);
+  if (bodyPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
+  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
+
+  if (can_be_empty || body.length() > 0) {
+    cout << body << endl;
+  }
+}
+
+
+void Shell::send_command(string message)
+{
+  // Format message for network transit
+  string formatted_message = message + endline;
+
+  // Send command over the network (through the provided socket)
+  if (send(cs_sock, formatted_message.c_str(), formatted_message.length(), 0) == -1) {
+    perror("Error sending message");
+    exit(1);
+  }
+}
+
+string Shell::receive_response()
+{
+  int BUFFER_SIZE = 1024;
+  char response_buffer[BUFFER_SIZE];
+  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
+  if (bytes_received == -1) {
+    perror("Error receiving message");
+    exit(1);
+  }
+
+  response_buffer[bytes_received] = '\0';
+  string response = response_buffer;
+  
+  string code, length, body;
+  size_t lenPos = response.find("\r\n");
+  if (lenPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  code = response.substr(0, lenPos);
+  size_t bodyPos = response.find("\r\n", lenPos + 2);
+  if (bodyPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
+  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
+
+  return body;
+}
+
+void Shell::cmmdprint(string message, bool can_be_empty)
+{
+  send_command(message);
+  string response = receive_response();
+
+  // Print the response body if it is non-empty, and if the function
+  // is allowed to print empty responses
+  if (can_be_empty || response.length() > 0) {
+    cout << response << endl;
+  }
+}
