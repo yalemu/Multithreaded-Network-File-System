@@ -27,8 +27,8 @@ void FileSys::unmount() {
 // make a directory
 void FileSys::mkdir(const char *name)
 {
-  dirblock_t currenttempInodeBlock;
-  bfs.read_block(curr_dir, (void*) &currenttempInodeBlock);
+  dirblock_t currentDirectoryBlock;
+  bfs.read_block(curr_dir, (void*) &currentDirectoryBlock);
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
@@ -37,14 +37,14 @@ void FileSys::mkdir(const char *name)
   }
 
   //check if max directory entries exceeded
-  if(currenttempInodeBlock.num_entries >= MAX_DIR_ENTRIES) {
+  if(currentDirectoryBlock.num_entries >= MAX_DIR_ENTRIES) {
     //MAX DIR ENTRIES EXCEEDED ERROR
     return;
   }
 
   //check if name already exists - linear search
-  for(int i = 0; i < currenttempInodeBlock.num_entries; i++)  {
-    if(strcmp(currenttempInodeBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
+  for(int i = 0; i < currentDirectoryBlock.num_entries; i++)  {
+    if(strcmp(currentDirectoryBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
       //DIRECTORY ALREADY EXISTS ERROR
       return;
     }
@@ -70,14 +70,14 @@ void FileSys::mkdir(const char *name)
 
 
   //update parent directory meta data
-  currenttempInodeBlock.dir_entries[currenttempInodeBlock.num_entries].block_num = blockID;
-  strcpy(currenttempInodeBlock.dir_entries[currenttempInodeBlock.num_entries].name, name);
-  currenttempInodeBlock.num_entries++;
+  currentDirectoryBlock.dir_entries[currentDirectoryBlock.num_entries].block_num = blockID;
+  strcpy(currentDirectoryBlock.dir_entries[currentDirectoryBlock.num_entries].name, name);
+  currentDirectoryBlock.num_entries++;
 
   
 
   //write blocks that were changed back to disk
-  bfs.write_block(curr_dir, (void*) &currenttempInodeBlock);
+  bfs.write_block(curr_dir, (void*) &currentDirectoryBlock);
   bfs.write_block(blockID, (void*) &newDir);
 
 }
@@ -85,15 +85,19 @@ void FileSys::mkdir(const char *name)
 // switch to a directory
 void FileSys::cd(const char *name)
 {
-  dirblock_t tempDir;
-  dirblock_t cdDir;
-  bfs.read_block(curr_dir, (void*) &tempDir);
+  dirblock_t currentDirectory;
+  dirblock_t targetDirectory;
+  bfs.read_block(curr_dir, (void*) &currentDirectory); //read in current Directory
 
-  for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
-      bfs.read_block(tempDir.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
-      if(cdDir.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
-        curr_dir = tempDir.dir_entries[i].block_num;// sets current directory to new block
+  for(int i = 0; i < currentDirectory.num_entries; i++)  {//scan through entries in current directory
+    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &targetDirectory); //loads block to check block type
+      if(targetDirectory.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
+        curr_dir = currentDirectory.dir_entries[i].block_num;// sets current directory to new block
+      }
+      else  {
+        //NOT A DIRECTORY 
+        return;
       }
     }
   }
@@ -104,34 +108,34 @@ void FileSys::cd(const char *name)
 
 // switch to home directory
 void FileSys::home() {
-  curr_dir = 1; //set directory block to home directory block
+  curr_dir = 1; //set current directory block number to home directory block
 }
 
 // remove a directory
 void FileSys::rmdir(const char *name)
 {
-  dirblock_t tempDir;
+  dirblock_t currentDirectory;
   dirblock_t cdDir;
-  bfs.read_block(curr_dir, (void*) &tempDir);
+  bfs.read_block(curr_dir, (void*) &currentDirectory);
 
-  for(int i = 0; i < tempDir.num_entries; i++)  {//scan through entries in current directory
-    if(strcmp(tempDir.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
-      bfs.read_block(tempDir.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
+  for(int i = 0; i < currentDirectory.num_entries; i++)  {//scan through entries in current directory
+    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if target directory exists in current directory
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &cdDir); //loads block to check block type
       if((cdDir.magic == DIR_MAGIC_NUM))  { //checks if block loaded is a Directory block
         if(cdDir.num_entries == 0)  { //ensure that directory is empty
         //found target directory
 
           //give back disk block
-          bfs.reclaim_block(tempDir.dir_entries[i].block_num);
+          bfs.reclaim_block(currentDirectory.dir_entries[i].block_num);
           
           //update parent directory metadata
-          tempDir.num_entries--;
-          for(int x = i; x <= tempDir.num_entries; x++)  {
-            tempDir.dir_entries[x] = tempDir.dir_entries[x + 1];
+          currentDirectory.num_entries--;
+          for(int x = i; x <= currentDirectory.num_entries; x++)  {
+            currentDirectory.dir_entries[x] = currentDirectory.dir_entries[x + 1];
           }
           
           //write block with changes to disk
-          bfs.write_block(curr_dir, (void*) &tempDir);
+          bfs.write_block(curr_dir, (void*) &currentDirectory);
         }
         else  {
           //DIRECTORY NOT EMPTY ERROR
@@ -148,19 +152,19 @@ void FileSys::rmdir(const char *name)
 // list the contents of current directory
 void FileSys::ls()
 {
-  dirblock_t currBlock;
+  dirblock_t currentDirectory;
   dirblock_t tempInodeBlock;
 
-  bfs.read_block(curr_dir, &currBlock);// read current directory
+  bfs.read_block(curr_dir, &currentDirectory);// read current directory
 
-  for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
-    bfs.read_block(currBlock.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data
+  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
+    bfs.read_block(currentDirectory.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data
 
     if(tempInodeBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
       cout << tempInodeBlock.dir_entries[i].name << "/" << endl;
     }
     else if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
-      cout << tempInodeBlock.dir_entries[i].name << "/" << endl;
+      cout << tempInodeBlock.dir_entries[i].name << endl;
     }
     else  {
       //UNKNOWN BLOCK TYPE ERROR
@@ -246,8 +250,8 @@ void FileSys::append(const char *name, const char *data)
   int currentDataBytesLeft = 0;
   int totNeededBlocks = 0;
   int dataBookmark = 0;
-
   int freeBlockNum = 0;
+
   bfs.read_block(curr_dir, &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
