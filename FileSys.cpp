@@ -32,36 +32,34 @@ void FileSys::mkdir(const char *name)
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
-    //NAME EXCEEDS MAX FILE NAME SIZE ERROR
+    //NAME EXCEEDS MAX FILE NAME SIZE ERROR 504
     return;
   }
-
   //check if max directory entries exceeded
   if(currentDirectoryBlock.num_entries >= MAX_DIR_ENTRIES) {
-    //MAX DIR ENTRIES EXCEEDED ERROR
+    //MAX DIR ENTRIES EXCEEDED ERROR 506
     return;
   }
-
   //check if name already exists - linear search
   for(int i = 0; i < currentDirectoryBlock.num_entries; i++)  {
     if(strcmp(currentDirectoryBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
-      //DIRECTORY ALREADY EXISTS ERROR
+      //DIRECTORY ALREADY EXISTS ERROR 502
       return;
     }
   }
   
 
   short blockID = bfs.get_free_block();
-  if(blockID <= 0)  { //check that given block is not superblock
-    //CANNOT GET FREE BLOCK ERROR
+  if(blockID <= 0)  { //check that given block is a valid block
+    //CANNOT GET FREE BLOCK ERROR 505
     return;
   }
 
 
-  //setup new directory 
+  //setup new directory object
   struct dirblock_t newDir; 
 
-  //set new dir metadata
+  //set new directory metadata
   newDir.magic = DIR_MAGIC_NUM; 
   newDir.num_entries = 0; 
   for(int j = 0; j < MAX_DIR_ENTRIES; j++)  { //initialize all dir entries to empty
@@ -74,11 +72,9 @@ void FileSys::mkdir(const char *name)
   strcpy(currentDirectoryBlock.dir_entries[currentDirectoryBlock.num_entries].name, name);
   currentDirectoryBlock.num_entries++;
 
-  
-
-  //write blocks that were changed back to disk
-  bfs.write_block(curr_dir, (void*) &currentDirectoryBlock);
+  //write blocks that were changed back to disk (write child first then parent)
   bfs.write_block(blockID, (void*) &newDir);
+  bfs.write_block(curr_dir, (void*) &currentDirectoryBlock);
 
 }
 
@@ -95,14 +91,14 @@ void FileSys::cd(const char *name)
       if(targetDirectory.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
         curr_dir = currentDirectory.dir_entries[i].block_num;// sets current directory to new block
       }
-      else  {
-        //NOT A DIRECTORY 
+      else  {//block is Inode
+        //NOT A DIRECTORY 500
         return;
       }
     }
   }
 
-  //DIRECTORY NOT FOUND ERROR
+  //DIRECTORY NOT FOUND ERROR 503
   return;
 }
 
@@ -125,27 +121,33 @@ void FileSys::rmdir(const char *name)
         if(cdDir.num_entries == 0)  { //ensure that directory is empty
         //found target directory
 
-          //give back disk block
-          bfs.reclaim_block(currentDirectory.dir_entries[i].block_num);
-          
+
           //update parent directory metadata
           currentDirectory.num_entries--;
-          for(int x = i; x <= currentDirectory.num_entries; x++)  {
+          for(int x = i; x <= currentDirectory.num_entries; x++)  {//shift down entries to fill gap
             currentDirectory.dir_entries[x] = currentDirectory.dir_entries[x + 1];
           }
           
-          //write block with changes to disk
+          //write block with changes to disk (update parent first)
           bfs.write_block(curr_dir, (void*) &currentDirectory);
+
+          //give back disk block (update child second)
+          bfs.reclaim_block(currentDirectory.dir_entries[i].block_num);
+        
         }
         else  {
-          //DIRECTORY NOT EMPTY ERROR
+          //DIRECTORY NOT EMPTY ERROR 507
           return;
         }
+      }
+      else  {//file is an inode
+        //WRONG FILE TYPE ERROR 500
+        return;
       }
     }
   }
 
-  //ERROR DIRECTORY NOT FOUND
+  //DIRECTORY NOT FOUND ERROR 503
   return;
 }
 
@@ -153,18 +155,18 @@ void FileSys::rmdir(const char *name)
 void FileSys::ls()
 {
   dirblock_t currentDirectory;
-  dirblock_t tempInodeBlock;
+  dirblock_t tempBlock;
 
-  bfs.read_block(curr_dir, &currentDirectory);// read current directory
+  bfs.read_block(curr_dir, (void*) &currentDirectory);// read current directory
 
   for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
-    bfs.read_block(currentDirectory.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data
+    bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &tempBlock); //reads block to check meta data
 
-    if(tempInodeBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
-      cout << tempInodeBlock.dir_entries[i].name << "/" << endl;
+    if(tempBlock.magic == DIR_MAGIC_NUM)  {//entry is a directory
+      cout << tempBlock.dir_entries[i].name << "/" << endl;
     }
-    else if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
-      cout << tempInodeBlock.dir_entries[i].name << endl;
+    else if(tempBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
+      cout << tempBlock.dir_entries[i].name << endl;
     }
     else  {
       //UNKNOWN BLOCK TYPE ERROR
@@ -179,7 +181,7 @@ void FileSys::create(const char *name)
 {
   dirblock_t currBlock;
 
-  bfs.read_block(curr_dir, &currBlock);
+  bfs.read_block(curr_dir, (void*) &currBlock);
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
@@ -252,11 +254,11 @@ void FileSys::append(const char *name, const char *data)
   int dataBookmark = 0;
   int freeBlockNum = 0;
 
-  bfs.read_block(curr_dir, &currBlock);// read current directory
+  bfs.read_block(curr_dir, (void*) &currBlock);// read current directory
 
   for(int i = 0; i < currBlock.num_entries; i++)  {//iterates through block entries
     if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currBlock.dir_entries[i].block_num, &tempInodeBlock); //reads block to check meta data 
+      bfs.read_block(currBlock.dir_entries[i].block_num, (void*) &tempInodeBlock); //reads block to check meta data 
       if(tempInodeBlock.magic == INODE_MAGIC_NUM) {//entry is a inode
         //file target found
 
@@ -269,7 +271,7 @@ void FileSys::append(const char *name, const char *data)
           
           if(currentDataBytesLeft != 0)  {//if there is already blocks of data, maybe need to be filled
 
-            bfs.read_block(tempInodeBlock.blocks[currentDataBlock - 1], &tempDataBlock);  //get last data block to append data to
+            bfs.read_block(tempInodeBlock.blocks[currentDataBlock - 1], (void*) &tempDataBlock);  //get last data block to append data to
 
             for(int z = currentDataBytesLeft; ((z < BLOCK_SIZE) || (data[dataBookmark] != '\0')); z++ )  { //fill up last blocks empty space 
               tempDataBlock.data[z] = data[dataBookmark];
@@ -355,12 +357,12 @@ void FileSys::cat(const char *name)
  bfs.read_block(curr_dir, (void* ) &currentDirectory);
  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
     if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode); //reads block to check meta data 
       if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
         //file target found
         totNumBlocks = (currentInode.size/BLOCK_SIZE) + 1;
         for(int z = 0; z < totNumBlocks - 1; z++) {
-          bfs.read_block(currentInode.blocks[z], (void *) &currentDataBlock);
+          bfs.read_block(currentInode.blocks[z], (void*) &currentDataBlock);
           for(int j=0; j < BLOCK_SIZE; j++) {
             outputMsg = outputMsg + currentDataBlock.data[j];
           }
@@ -368,7 +370,7 @@ void FileSys::cat(const char *name)
 
         leftOverBytes = (currentInode.size - (totNumBlocks - 1)*BLOCK_SIZE);
         //read final block seperately in case not full
-        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void *) &currentDataBlock);
+        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void*) &currentDataBlock);
         for(int j=0; j < leftOverBytes; j++) {
           outputMsg = outputMsg + currentDataBlock.data[j];
         }
@@ -399,10 +401,10 @@ void FileSys::head(const char *name, unsigned int n)
   int totNumBlocks;
   int leftOverBytes = 0;
 
- bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ bfs.read_block(curr_dir, (void*) &currentDirectory);
  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
     if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode); //reads block to check meta data 
       if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
         if(n >= currentInode.size)  {
           //print everything in file
@@ -415,14 +417,14 @@ void FileSys::head(const char *name, unsigned int n)
 
         totNumBlocks = (printSize/BLOCK_SIZE) + 1;
         for(int z = 0; z < totNumBlocks - 1; z++) {
-          bfs.read_block(currentInode.blocks[z], (void *) &currentDataBlock);
+          bfs.read_block(currentInode.blocks[z], (void*) &currentDataBlock);
           for(int j=0; j < BLOCK_SIZE; j++) {
             outputMsg = outputMsg + currentDataBlock.data[j];
           }
         }
         leftOverBytes = (printSize - (totNumBlocks - 1)*BLOCK_SIZE);
         //read final block seperately in case not full
-        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void *) &currentDataBlock);
+        bfs.read_block(currentInode.blocks[totNumBlocks - 1], (void*) &currentDataBlock);
         for(int j=0; j < leftOverBytes; j++) {
           outputMsg = outputMsg + currentDataBlock.data[j];
         }   
@@ -450,10 +452,10 @@ void FileSys::rm(const char *name)
   int totalNumBlocks = 0;
   short inodeBlockNum = 0;
 
- bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ bfs.read_block(curr_dir, (void*) &currentDirectory);
  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
    if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currentDirectory.dir_entries[i].block_num, &currentInode); //reads block to check meta data 
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode); //reads block to check meta data 
       if(currentInode.magic == INODE_MAGIC_NUM) {//entry is a inode
 
 
@@ -494,12 +496,12 @@ void FileSys::stat(const char *name)
   inode_t currentInode;
 
 
- bfs.read_block(curr_dir, (void* ) &currentDirectory);
+ bfs.read_block(curr_dir, (void*) &currentDirectory);
  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
     if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
-      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void* )&testDir); //reads block to check meta data 
+      bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &testDir); //reads block to check meta data 
       if(testDir.magic == INODE_MAGIC_NUM) {//entry is a inode
-        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void* ) &currentInode);
+        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode);
         cout << "Inode block: " << currentDirectory.dir_entries[i].block_num << endl;
         cout << "Bytes in file: " << currentInode.size << endl;
         cout << "Number of blocks: " << (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1)) << endl;
