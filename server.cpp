@@ -7,11 +7,36 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 1024
 
 #include "FileSys.h"
 using namespace std;
+
+enum CommandType
+{
+    mkdir,
+    ls,
+    cd,
+    home,
+    rmdir_cmd, // Prevent name colision with an existing `rmdir` function.
+    create,
+    append,
+    stat,
+    cat,
+    head,
+    rm,
+    quit,
+    invalid
+};
+
+struct Command
+{
+    CommandType type;
+    string file;      // cmd.name of the file to manipulate
+    string data;      // data to add or for the append or number for head
+};
 
 int main(int argc, char *argv[])
 {
@@ -27,7 +52,7 @@ int main(int argc, char *argv[])
     if (sock < 0)
     {
         cout << "ERROR: Failed to open socket.\n";
-        return;
+        return -1;
     }
 
     sockaddr_in server_addr;
@@ -80,73 +105,87 @@ int main(int argc, char *argv[])
             perror("Error accepting connection");
             continue;
         }
-        string command;
         while (true)
         {
             // maxBufferSize
-            char buffer[BUFFER_SIZE];
+            char* buffer[BUFFER_SIZE];
             memset(buffer, 0, BUFFER_SIZE);
-            int x = read(sock, buffer, BUFFER_SIZE - 1);
-            if (x <= 0)
+            cout << "test" << endl;
+            int x = read(sock, buffer, sizeof(buffer));
+            if (x == -1 || x == 1)
             {
+                std::cerr << strerror (errno);
                 cout << "client disconnected" << endl;
                 break;
             }
-            command = string(buffer);
-            command = command.substr(0, command.find_first_of("\r\n"));
+            Command command;
+            CommandType type = command.type;
+            const char*file = command.file.c_str();
+            const char*data = command.data.c_str();
 
-            if (command == "cd")
+            if (type == cd)
             {
-                fs.cd(name);
+                fs.cd(file);
+                continue;
             }
-            else if (command == "home")
+            else if (type == home)
             {
                 fs.home();
+                continue;
             }
 
-            else if (command == "mkdir")
+            else if (type == mkdir)
             {
-                fs.mkdir(name);
+                fs.mkdir(file);
+                continue;
             }
 
-            else if (command == "rmdir")
+            else if (type == rmdir_cmd)
             {
-                fs.rmdir(name);
+                fs.rmdir(file);
+                continue;
             }
 
-            else if (command == "ls")
+            else if (type == ls)
             {
                 fs.ls();
+                continue;
             }
 
-            else if (command == "create")
+            else if (type == create)
             {
-                fs.create(name);
+                fs.create(file);
+                continue;
             }
 
-            else if (command == "append")
+            else if (type == append)
             {
-                fs.append(name); // needs more argument 
+                fs.append(file,data); 
+                continue; 
             }
 
-            else if (command == "cat")
+            else if (type == cat)
             {
-                fs.cat(name);
+                fs.cat(file);
+                continue;
             }
 
-            else if (command == "head")
+            else if (type == head)
             {
-                fs.head(name); //needs more argument 
+                fs.head(file,stoi(data)); 
+                continue;
             }
 
-            else if (command == "rm")
+            else if (type == rm)
             {
-                fs.rm(name);
+                fs.rm(file);
+                continue;
             }
 
-            else if (command == "stat")
+            else if (type == stat)
             {
-                fs.stat(name);
+                fs.stat(file);
+                continue;
             }
         }
     }
