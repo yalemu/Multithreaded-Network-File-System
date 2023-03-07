@@ -19,62 +19,89 @@ void Shell::mountNFS(string fs_loc) {
 // Unmount the network file system if it was mounted
 void Shell::unmountNFS() {
 	// close the socket if it was mounted
+    if (is_mounted) {
+        close(cs_sock);
+        is_mounted = false;
+    }
 }
 
 // Remote procedure call on mkdir
 void Shell::mkdir_rpc(string dname) {
   // to implement
+  string command = "mkdir " + dname + "\n\r";
+  cmmdprint(command, "mkdir");
 }
 
 // Remote procedure call on cd
 void Shell::cd_rpc(string dname) {
   // to implement
+  string command = "cd " + dname + "\n\r";
+  cmmdprint(command, "cd");
 }
 
 // Remote procedure call on home
 void Shell::home_rpc() {
   // to implement
+  string command = "home " + "\n\r";
+  cmmdprint(command, "home");
 }
 
 // Remote procedure call on rmdir
 void Shell::rmdir_rpc(string dname) {
   // to implement
-}
+  string command = "rmdir " + dname + "\n\r";
+  cmmdprint(command, "rmdir");
+} 
 
 // Remote procedure call on ls
 void Shell::ls_rpc() {
   // to implement
+  string command = "ls" + "\n\r";
+  cmmdprint(command, "ls");
 }
 
 // Remote procedure call on create
 void Shell::create_rpc(string fname) {
   // to implement
+  string command = "create " + fname + "\n\r";
+  cmmdprint(command, "create");
 }
 
 // Remote procedure call on append
 void Shell::append_rpc(string fname, string data) {
   // to implement
+  string command = "append" + fname + " " + data + "\n\r";
+  cmmdprint(command, "append");
 }
 
 // Remote procesure call on cat
 void Shell::cat_rpc(string fname) {
   // to implement
+  string command = "cat" + fname + "\n\r";
+  cmmdprint(command, "cat");
 }
 
 // Remote procedure call on head
 void Shell::head_rpc(string fname, int n) {
   // to implement
+  string command = "head " + fname + " " + to_string(n) + "\n\r";
+  cmmdprint(command, "head");
 }
 
 // Remote procedure call on rm
 void Shell::rm_rpc(string fname) {
   // to implement
+  string command = "rm" + fname + "\n\r";
+  cmmdprint(command, "rm");
 }
 
 // Remote procedure call on stat
 void Shell::stat_rpc(string fname) {
   // to implement
+  string command = "stat" + fname + "\n\r";
+  cmmdprint(command, "stat");
 }
+
 
 // Executes the shell until the user quits.
 void Shell::run()
@@ -261,3 +288,102 @@ Shell::Command Shell::parse_command(string command_str)
   return command;
 }
 
+
+
+void Shell::network_command(string message, bool can_be_empty)
+{
+  string format = message + endline;
+
+  // Send command over the network (through the provided socket)
+  if (send(cs_sock, format.c_str(), format.length(), 0) == -1) {
+    perror("Error sending message");
+    exit(1);
+  }
+
+  // Receive response from server
+  int BUFFER_SIZE = 1024;
+  char response_buffer[BUFFER_SIZE];
+  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
+  if (bytes_received == -1) {
+    perror("Error receiving message");
+    exit(1);
+  }
+
+  response_buffer[bytes_received] = '\0';
+  string response = response_buffer;
+  
+  string code, length, body;
+  size_t lenPos = response.find("\r\n");
+  if (lenPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  code = response.substr(0, lenPos);
+  size_t bodyPos = response.find("\r\n", lenPos + 2);
+  if (bodyPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
+  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
+
+  if (can_be_empty || body.length() > 0) {
+    cout << body << endl;
+  }
+}
+
+
+void Shell::send_command(string message)
+{
+  // Format message for network transit
+  string formatted_message = message + endline;
+
+  // Send command over the network (through the provided socket)
+  if (send(cs_sock, formatted_message.c_str(), formatted_message.length(), 0) == -1) {
+    perror("Error sending message");
+    exit(1);
+  }
+}
+
+string Shell::receive_response()
+{
+  int BUFFER_SIZE = 1024;
+  char response_buffer[BUFFER_SIZE];
+  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
+  if (bytes_received == -1) {
+    perror("Error receiving message");
+    exit(1);
+  }
+
+  response_buffer[bytes_received] = '\0';
+  string response = response_buffer;
+  
+  string code, length, body;
+  size_t lenPos = response.find("\r\n");
+  if (lenPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  code = response.substr(0, lenPos);
+  size_t bodyPos = response.find("\r\n", lenPos + 2);
+  if (bodyPos == string::npos) {
+    cerr << "Error: Invalid response from server" << endl;
+    exit(1);
+  }
+  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
+  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
+
+  return body;
+}
+
+void Shell::cmmdprint(string message, bool can_be_empty)
+{
+  send_command(message);
+  string response = receive_response();
+
+  // Print the response body if it is non-empty, and if the function
+  // is allowed to print empty responses
+  if (can_be_empty || response.length() > 0) {
+    cout << response << endl;
+  }
+}
