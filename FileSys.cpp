@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <cmath>
+#include <string>
 using namespace std;
 
 #include "FileSys.h"
@@ -90,6 +91,7 @@ void FileSys::cd(const char *name)
       bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &targetDirectory); //loads block to check block type
       if(targetDirectory.magic == DIR_MAGIC_NUM)  { //checks if block loaded is a Directory block
         curr_dir = currentDirectory.dir_entries[i].block_num;// sets current directory to new block
+        return;
       }
       else  {//block is Inode
         msg("NOT A DIRECTORY 500");
@@ -494,22 +496,23 @@ void FileSys::stat(const char *name)
   dirblock_t currentDirectory;
   dirblock_t testDir;
   inode_t currentInode;
-
+  int temp;
 
  bfs.read_block(curr_dir, (void*) &currentDirectory);
  for(int i = 0; i < currentDirectory.num_entries; i++)  {//iterates through block entries
     if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
       bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &testDir); //reads block to check meta data 
       if(testDir.magic == INODE_MAGIC_NUM) {//entry is a inode
-        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode));
-        msg("Inode block: " << currentDirectory.dir_entries[i].block_num);
-        msg("Bytes in file: " << currentInode.size)
-        msg("Number of blocks: " << (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1)));
-        msg("First block: " << currentInode.blocks[0]);
+        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode);
+        msg("Inode block: " + currentDirectory.dir_entries[i].block_num);
+        msg("Bytes in file: " + currentInode.size);
+        temp = (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1));
+        msg("Number of blocks: " + temp);
+        msg("First block: " + currentInode.blocks[0]);
       }
       else  { //entry is a directory
-        msg("Directory name: " << currentDirectory.dir_entries[i].name);
-        msg("Directory block: " << currentDirectory.dir_entries[i].block_num);
+        msg("Directory name: " + str(currentDirectory.dir_entries[i].name));
+        msg("Directory block: " + currentDirectory.dir_entries[i].block_num);
       }
     }     
   }
@@ -522,5 +525,6 @@ void FileSys::stat(const char *name)
 void FileSys::msg(string message)
 {
   string outputMsg = "Message: " + message;
+  cout << outputMsg << endl;
   send_message(this->fs_sock, outputMsg);
 }
