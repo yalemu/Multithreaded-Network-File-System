@@ -135,7 +135,7 @@ void FileSys::rmdir(const char *name)
 
           //give back disk block (update child second)
           bfs.reclaim_block(currentDirectory.dir_entries[i].block_num);
-        
+          return;
         }
         else  {
           msg("DIRECTORY NOT EMPTY ERROR 507");
