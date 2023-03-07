@@ -301,7 +301,7 @@ void FileSys::append(const char *name, const char *data)
 
           //code to add whole new data blocks to append data to
 
-          datablock_t* dataArr = new datablock_t[totalNewBlocks];
+          datablock_t dataArr[totalNewBlocks];
           for(int v = 0; v < totalNewBlocks; v++) {
             for(int t = 0; t < BLOCK_SIZE; t++) { //store data into datablock
               dataArr[v].data[t] = data[dataBookmark];
