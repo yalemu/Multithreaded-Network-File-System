@@ -32,18 +32,18 @@ void FileSys::mkdir(const char *name)
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
-    //NAME EXCEEDS MAX FILE NAME SIZE ERROR 504
+    msg("NAME EXCEEDS MAX FILE NAME SIZE ERROR 504");
     return;
   }
   //check if max directory entries exceeded
   if(currentDirectoryBlock.num_entries >= MAX_DIR_ENTRIES) {
-    //MAX DIR ENTRIES EXCEEDED ERROR 506
+    msg("MAX DIR ENTRIES EXCEEDED ERROR 506");
     return;
   }
   //check if name already exists - linear search
   for(int i = 0; i < currentDirectoryBlock.num_entries; i++)  {
     if(strcmp(currentDirectoryBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
-      //DIRECTORY ALREADY EXISTS ERROR 502
+      msg("DIRECTORY ALREADY EXISTS ERROR 502");
       return;
     }
   }
@@ -51,7 +51,7 @@ void FileSys::mkdir(const char *name)
 
   short blockID = bfs.get_free_block();
   if(blockID <= 0)  { //check that given block is a valid block
-    //CANNOT GET FREE BLOCK ERROR 505
+    msg("CANNOT GET FREE BLOCK ERROR 505");
     return;
   }
 
@@ -92,13 +92,13 @@ void FileSys::cd(const char *name)
         curr_dir = currentDirectory.dir_entries[i].block_num;// sets current directory to new block
       }
       else  {//block is Inode
-        //NOT A DIRECTORY 500
+        msg("NOT A DIRECTORY 500");
         return;
       }
     }
   }
 
-  //DIRECTORY NOT FOUND ERROR 503
+  msg("DIRECTORY NOT FOUND ERROR 503");
   return;
 }
 
@@ -136,18 +136,18 @@ void FileSys::rmdir(const char *name)
         
         }
         else  {
-          //DIRECTORY NOT EMPTY ERROR 507
+          msg("DIRECTORY NOT EMPTY ERROR 507");
           return;
         }
       }
       else  {//file is an inode
-        //WRONG FILE TYPE ERROR 500
+        msg("WRONG FILE TYPE ERROR 500");
         return;
       }
     }
   }
 
-  //DIRECTORY NOT FOUND ERROR 503
+  msg("DIRECTORY NOT FOUND ERROR 503");
   return;
 }
 
@@ -169,7 +169,7 @@ void FileSys::ls()
       cout << tempBlock.dir_entries[i].name << endl;
     }
     else  {
-      //UNKNOWN BLOCK TYPE ERROR
+      msg("UNKNOWN BLOCK TYPE ERROR");
       return;
     }
   }
@@ -185,21 +185,21 @@ void FileSys::create(const char *name)
 
   //check if name exceeds limit
   if(strlen(name) > MAX_FNAME_SIZE)  {
-    //NAME EXCEEDS MAX FILE NAME SIZE ERROR
+    msg("NAME EXCEEDS MAX FILE NAME SIZE ERROR");
     return;
   }
 
   //check if name already exists - linear search
   for(int i = 0; i < currBlock.num_entries; i++)  {
     if(strcmp(currBlock.dir_entries[i].name, name) == 0)  {//checks if dir already exists
-      //DIRECTORY ALREADY EXISTS ERROR
+      msg("DIRECTORY ALREADY EXISTS ERROR");
       return;
     }
   }
 
   //check if max directory entries exceeded
   if(currBlock.num_entries >= MAX_DIR_ENTRIES) {
-    //MAX DIR ENTRIES EXCEEDED ERROR
+    msg("MAX DIR ENTRIES EXCEEDED ERROR");
     return;
   }
   //all precondtions passed, now make inode for file
@@ -207,7 +207,7 @@ void FileSys::create(const char *name)
   //get new block to hold inode in current directory
   short newBlock = bfs.get_free_block();
   if(newBlock <= 0)  { //check that given block is not superblock
-    //CANNOT GET FREE BLOCK ERROR
+    msg("CANNOT GET FREE BLOCK ERROR");
     return;
   }
 
@@ -281,7 +281,7 @@ void FileSys::append(const char *name, const char *data)
             //write updated block to memory
             freeBlockNum = bfs.get_free_block();
             if(freeBlockNum <= 0)  { //check that given block is not superblock
-              //CANNOT GET FREE BLOCK ERROR
+              msg("CANNOT GET FREE BLOCK ERROR");
               return;
             }
             tempInodeBlock.blocks[currentDataBlock - 1] = freeBlockNum; 
@@ -309,7 +309,7 @@ void FileSys::append(const char *name, const char *data)
             }
             freeBlockNum = bfs.get_free_block();
             if(freeBlockNum <= 0)  { //check that given block is not superblock
-              //CANNOT GET FREE BLOCK ERROR
+              msg("CANNOT GET FREE BLOCK ERROR");
               return;
             }
 
@@ -326,7 +326,7 @@ void FileSys::append(const char *name, const char *data)
           bfs.write_block(currBlock.dir_entries[i].block_num, &tempInodeBlock);
         }
         else  { 
-          //MAX FILE LIMIT WILL BE REACHED WITH APPEND
+          msg("MAX FILE LIMIT WILL BE REACHED WITH APPEND");
           return;
         }
 
@@ -334,13 +334,13 @@ void FileSys::append(const char *name, const char *data)
 
       }
       else  {
-        //NOT A DIRECTORY
+        msg("NOT A DIRECTORY");
         return;
       }
     }     
   }
 
-  //CANNOT FIND TARGET FILE
+  msg("CANNOT FIND TARGET FILE");
   return;
 }
 
@@ -380,13 +380,13 @@ void FileSys::cat(const char *name)
 
       }
       else  {
-        //NOT A DIRECTORY
+        msg("NOT A DIRECTORY");
         return;
       }
     }     
   }
   
-  //NOT FOUND ERROR
+  msg("NOT FOUND ERROR");
   return;
 }
 
@@ -433,13 +433,13 @@ void FileSys::head(const char *name, unsigned int n)
 
       }
       else  {
-        //NOT A DIRECTORY
+        msg("NOT A DIRECTORY");
         return;
       }
     }     
   }
   
-  //NOT FOUND ERROR
+  msg("NOT FOUND ERROR");
   return;
 }
 
@@ -477,13 +477,13 @@ void FileSys::rm(const char *name)
 
       }
       else  { 
-       //ENTRY IS A DIRECTORY
+       msg("ENTRY IS A DIRECTORY");
        return;
       }
     }     
   }
 
-  //NOT FOUND ERROR
+  msg("NOT FOUND ERROR");
   return;
   
 }
@@ -501,21 +501,26 @@ void FileSys::stat(const char *name)
     if(strcmp(currentDirectory.dir_entries[i].name, name) == 0)  {//checks if names match
       bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &testDir); //reads block to check meta data 
       if(testDir.magic == INODE_MAGIC_NUM) {//entry is a inode
-        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode);
-        cout << "Inode block: " << currentDirectory.dir_entries[i].block_num << endl;
-        cout << "Bytes in file: " << currentInode.size << endl;
-        cout << "Number of blocks: " << (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1)) << endl;
-        cout << "First block: " << currentInode.blocks[0];
+        bfs.read_block(currentDirectory.dir_entries[i].block_num, (void*) &currentInode));
+        msg("Inode block: " << currentDirectory.dir_entries[i].block_num);
+        msg("Bytes in file: " << currentInode.size)
+        msg("Number of blocks: " << (ceil(static_cast<double>(currentInode.size/BLOCK_SIZE) + 1)));
+        msg("First block: " << currentInode.blocks[0]);
       }
       else  { //entry is a directory
-        cout << "Directory name: " << currentDirectory.dir_entries[i].name << endl;
-        cout << "Directory block: " << currentDirectory.dir_entries[i].block_num << endl;
+        msg("Directory name: " << currentDirectory.dir_entries[i].name);
+        msg("Directory block: " << currentDirectory.dir_entries[i].block_num);
       }
     }     
   }
 
-  //NOT FOUND ERROR
+  msg("NOT FOUND ERROR");
   return;
 }
 
 // HELPER FUNCTIONS (optional)
+void FileSys::msg(string message)
+{
+  string outputMsg = "Message: " + message;
+  send_message(this->fs_sock, outputMsg);
+}

@@ -55,6 +55,7 @@ class FileSys {
     int fs_sock;  // file server socket
 
     // Additional private variables and Helper functions - if desired
+    void msg(string message = "works");
 };
 
 #endif 
