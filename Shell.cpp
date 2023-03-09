@@ -4,14 +4,78 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
+#include <cstring>
+#include <vector>
+
 using namespace std;
 
 #include "Shell.h"
 
 static const string PROMPT_STRING = "NFS> ";	// shell prompt
 
+
 // Mount the network file system with server name and port number in the format of server:port
 void Shell::mountNFS(string fs_loc) {
+   // create the socket cs_sock and connect it to the server and port specified in fs_loc
+  // if all the above operations are completed successfully, set is_mounted to true
+
+  
+  string hostname;
+  string port;
+  string junk;
+
+  size_t curr = 0;
+  size_t delimit_idx;
+ 
+  istringstream ss(fs_loc);
+  string token;
+  if (getline(ss, token, ':'))
+  {
+    hostname = token;
+    if (getline(ss, token))
+    {
+      port = token;
+    }
+  }
+
+  addrinfo *addr, hints;
+  bzero(&hints, sizeof(hints));
+  hints.ai_family = PF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = PF_UNSPEC;
+
+  int ret;
+  if ((ret = getaddrinfo(hostname.c_str(), port.c_str(), &hints, &addr)) != 0)
+  {
+    cout << "Error: Could not obtain address information for \"" << hostname << ":" << port << "\"" << endl;
+    cout << "\tgetaddrinfo returned with " << ret << endl;
+    exit(1);
+  }
+  // create socket to connect
+  this->cs_sock = socket(PF_INET, SOCK_STREAM, PF_UNSPEC);
+
+  if (cs_sock < 0)
+  {
+    cout << "Error: Failed to create a socket" << endl;
+    cout << "\tsocket returned with " << cs_sock << endl;
+    exit(1);
+  }
+
+  // connect to server
+  int connect_ret = connect(cs_sock, addr->ai_addr, addr->ai_addrlen);
+  if (connect_ret < 0)
+  {
+    cout << "Error: Failed to connect with server (" << hostname << ":" << port
+         << ")." << endl;
+    cout << "\tDouble check that the server is running." << endl;
+    exit(1);
+  }
+
+  // Free the linked list created by getaddrinfo
+  freeaddrinfo(addr);
+
+  is_mounted = true;
 	//create the socket cs_sock and connect it to the server and port specified in fs_loc
 	//if all the above operations are completed successfully, set is_mounted to true  
 }
@@ -29,77 +93,77 @@ void Shell::unmountNFS() {
 void Shell::mkdir_rpc(string dname) {
   // to implement
   string command = "mkdir " + dname + "\n\r";
-  cmmdprint(command, "mkdir");
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on cd
 void Shell::cd_rpc(string dname) {
   // to implement
   string command = "cd " + dname + "\n\r";
-  cmmdprint(command, "cd");
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on home
 void Shell::home_rpc() {
   // to implement
-  string command = "home " + "\n\r";
-  cmmdprint(command, "home");
+  string command = "home\n\r";
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on rmdir
 void Shell::rmdir_rpc(string dname) {
   // to implement
   string command = "rmdir " + dname + "\n\r";
-  cmmdprint(command, "rmdir");
+  cmmdprint(command, false);
 } 
 
 // Remote procedure call on ls
 void Shell::ls_rpc() {
   // to implement
-  string command = "ls" + "\n\r";
-  cmmdprint(command, "ls");
+  string command = "ls\n\r";
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on create
 void Shell::create_rpc(string fname) {
   // to implement
   string command = "create " + fname + "\n\r";
-  cmmdprint(command, "create");
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on append
 void Shell::append_rpc(string fname, string data) {
   // to implement
-  string command = "append" + fname + " " + data + "\n\r";
-  cmmdprint(command, "append");
+  string command = "append " + fname + " " + data + "\n\r";
+  cmmdprint(command, false);
 }
 
 // Remote procesure call on cat
 void Shell::cat_rpc(string fname) {
   // to implement
-  string command = "cat" + fname + "\n\r";
-  cmmdprint(command, "cat");
+  string command = "cat " + fname + "\n\r";
+  cmmdprint(command, true);
 }
 
 // Remote procedure call on head
 void Shell::head_rpc(string fname, int n) {
   // to implement
   string command = "head " + fname + " " + to_string(n) + "\n\r";
-  cmmdprint(command, "head");
+  cmmdprint(command, true);
 }
 
 // Remote procedure call on rm
 void Shell::rm_rpc(string fname) {
   // to implement
-  string command = "rm" + fname + "\n\r";
-  cmmdprint(command, "rm");
+  string command = "rm " + fname + "\n\r";
+  cmmdprint(command, false);
 }
 
 // Remote procedure call on stat
 void Shell::stat_rpc(string fname) {
   // to implement
-  string command = "stat" + fname + "\n\r";
-  cmmdprint(command, "stat");
+  string command = "stat " + fname + "\n\r";
+  cmmdprint(command, false);
 }
 
 
@@ -288,102 +352,138 @@ Shell::Command Shell::parse_command(string command_str)
   return command;
 }
 
-
-
-void Shell::network_command(string message, bool can_be_empty)
-{
-  string format = message + endline;
-
-  // Send command over the network (through the provided socket)
-  if (send(cs_sock, format.c_str(), format.length(), 0) == -1) {
-    perror("Error sending message");
-    exit(1);
-  }
-
-  // Receive response from server
-  int BUFFER_SIZE = 1024;
-  char response_buffer[BUFFER_SIZE];
-  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
-  if (bytes_received == -1) {
-    perror("Error receiving message");
-    exit(1);
-  }
-
-  response_buffer[bytes_received] = '\0';
-  string response = response_buffer;
-  
-  string code, length, body;
-  size_t lenPos = response.find("\r\n");
-  if (lenPos == string::npos) {
-    cerr << "Error: Invalid response from server" << endl;
-    exit(1);
-  }
-  code = response.substr(0, lenPos);
-  size_t bodyPos = response.find("\r\n", lenPos + 2);
-  if (bodyPos == string::npos) {
-    cerr << "Error: Invalid response from server" << endl;
-    exit(1);
-  }
-  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
-  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
-
-  if (can_be_empty || body.length() > 0) {
-    cout << body << endl;
-  }
-}
-
-
 void Shell::send_command(string message)
 {
   // Format message for network transit
-  string formatted_message = message + endline;
-
+  string formatted_message = message + "\r\n";
+/*
   // Send command over the network (through the provided socket)
   if (send(cs_sock, formatted_message.c_str(), formatted_message.length(), 0) == -1) {
     perror("Error sending message");
     exit(1);
   }
+*/
+  for(int i = 0; i < formatted_message.length(); i++) {
+    char p = formatted_message[i];
+    int bytes_sent = 0;
+    int x;
+    while(bytes_sent < sizeof(char))  {
+      x = send(cs_sock, (void*) &p, sizeof(char), 0);
+      if(x == -1) {
+        perror("write");
+        close(cs_sock);
+        exit(1);
+      }
+      bytes_sent += x;
+    }
+  }
 }
 
 string Shell::receive_response()
 {
-  int BUFFER_SIZE = 1024;
-  char response_buffer[BUFFER_SIZE];
-  int bytes_received = recv(cs_sock, response_buffer, BUFFER_SIZE - 1, 0);
-  if (bytes_received == -1) {
-    perror("Error receiving message");
-    exit(1);
-  }
+  //int BUFFER_SIZE = 1024;
+  vector<char> response_buffer;//
+  char tempBuf;
+  char lastBuf;
+  int count = 0;
+  bool isFinished = false;
+  while(!isFinished)  {
+    int bytesRec = 0;
+    while(bytesRec < sizeof(char)) {
+      int x = recv(cs_sock, (void*)&tempBuf, sizeof(char), 0);
+      if(x == -1) {
+        perror("read");
+        close(cs_sock);
+        exit(1);
+      }
+      bytesRec += x;
+    }
+    if(tempBuf == '\n'  && lastBuf == '\r')  {
+      isFinished = true;
+    }
+    response_buffer.push_back(tempBuf);
+//    count++;
+    lastBuf = tempBuf;
 
-  response_buffer[bytes_received] = '\0';
-  string response = response_buffer;
+  }
+    return string(response_buffer.begin(), response_buffer.end());
+    
   
-  string code, length, body;
-  size_t lenPos = response.find("\r\n");
-  if (lenPos == string::npos) {
-    cerr << "Error: Invalid response from server" << endl;
-    exit(1);
-  }
-  code = response.substr(0, lenPos);
-  size_t bodyPos = response.find("\r\n", lenPos + 2);
-  if (bodyPos == string::npos) {
-    cerr << "Error: Invalid response from server" << endl;
-    exit(1);
-  }
-  length = response.substr(lenPos + 2, bodyPos - lenPos - 2);
-  body = response.substr(bodyPos + 4); // There should be two sets of "\r\n"
 
-  return body;
+
+  /*
+  //cout << "hello" << endl;
+  memset(response_buffer,'\0',sizeof(response_buffer));
+  int bytes_received = read(cs_sock, response_buffer, BUFFER_SIZE); // is a blockig system call not going past here so goes on deadlock 
+  cout << response_buffer << endl;
+  
+  memset(response_buffer,'\0',sizeof(response_buffer));
+
+  //cout << " tf u want ";
+  int bytes = read(cs_sock, response_buffer, BUFFER_SIZE);
+  //cout << " gifter \n";
+  cout << response_buffer << endl;
+  //cout << "orint";
+ 
+  //int bytes1 = read(cs_sock, response_buffer, BUFFER_SIZE - 1);
+  //cout << response_buffer << endl;
+  memset(response_buffer,'\0',sizeof(response_buffer));
+
+  int bytes2 = read(cs_sock, response_buffer, BUFFER_SIZE);
+  cout << response_buffer << endl;
+  //cout << "print after ";
+*/
+
+}
+
+string Shell::receiveDataresponse(int size)
+{
+  //int BUFFER_SIZE = 1024;
+  vector<char> response_buffer;//
+  char tempBuf;
+  char lastBuf;
+  int count = 0;
+  while(count < size)  {
+    int bytesRec = 0;
+    while(bytesRec < sizeof(char)) {
+      int x = recv(cs_sock, (void*)&tempBuf, sizeof(char), 0);
+      if(x == -1) {
+        perror("read");
+        close(cs_sock);
+        exit(1);
+      }
+      bytesRec += x;
+    }
+
+    response_buffer.push_back(tempBuf);
+    count++;
+    lastBuf = tempBuf;
+
+  }
+  return string(response_buffer.begin(), response_buffer.end());
+    
 }
 
 void Shell::cmmdprint(string message, bool can_be_empty)
 {
+  string temp = "";
+  int size = 0;
   send_command(message);
-  string response = receive_response();
+  
+  temp = receive_response();
+  cout << temp;
+  
+  temp = receive_response();
+  
+  size_t colonPos = temp.find(':'); // find the position of the colon
+  size_t crPos = temp.find('\r'); // find the position of the carriage return
 
-  // Print the response body if it is non-empty, and if the function
-  // is allowed to print empty responses
-  if (can_be_empty || response.length() > 0) {
-    cout << response << endl;
+  if (colonPos != std::string::npos && crPos != std::string::npos) {
+      // extract the substring between the colon and carriage return
+      size = stoi(temp.substr(colonPos + 1, crPos - colonPos - 1));
   }
+  temp = receive_response();
+  temp = receiveDataresponse(size);
+  cout << temp << endl;
 }
+

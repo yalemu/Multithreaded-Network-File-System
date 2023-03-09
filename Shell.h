@@ -44,6 +44,11 @@ class Shell {
       string file_name;		// name of file
       string append_data;	// append data (append only)
     };
+    void network_command(string message, bool can_be_empty);
+    void send_command(string message);
+    string receive_response();
+    string receiveDataresponse(int size);
+    void cmmdprint(string message, bool can_be_empty);
 
     // Executes the command. Returns true for quit and false otherwise.
     bool execute_command(string command_str);

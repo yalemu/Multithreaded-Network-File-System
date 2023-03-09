@@ -3,8 +3,9 @@
 
 #ifndef FILESYS_H
 #define FILESYS_H
-
+#include <string>
 #include "BasicFileSys.h"
+
 
 class FileSys {
   
@@ -55,7 +56,7 @@ class FileSys {
     int fs_sock;  // file server socket
 
     // Additional private variables and Helper functions - if desired
-    void msg(string message = "works");
+    void msg(int errorNum, std::string data);
 };
 
-#endif 
+#endif
