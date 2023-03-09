@@ -1,28 +1,162 @@
 //// Each team member's name and contributions ////////////
-Team member #1: xxx
+Team member #1: Benjamin Philipose
 Contributions:
+Main Authour of File System, worked on debugging Server.cpp and Shell.cpp
 
-Team member #2: xxx
+Team member #3: Ryan Rao
 Contributions:
+Co-Author of Server.cpp, Shell.cpp, Client.cpp, worked on debugging Server.cpp and Shell.cpp
 
+Team member #2: Yonnas Yalemu
+Contributions:
+Co-Author of Server.cpp, Shell.cpp, Client.cpp, worked on debugging Clinet.cpp, Server.cpp, Shell.cpp
 ...
 
 
 
 
 //// My own rating on the functionality ///////////////////
-Rating: A, B, C, D, or F?
+Rating: A
 Explanation: 
-...
+All Functions work as expected. Code is concise and clearly commented. 
+I would say that with more time there would be more helper functions to make the code more modular, 
+but aside from that the code works and functions well. Ocssionally cannot get free block, when running command again it has gotten the block.
+
 
 
 
 
 //// Test cases ///////////////////////////////////////////
-Test case #1: mkdir abc
+
+Test case #1: ls
 Results: 
+NFS> ls   
+200 OK
+Empty Folder
+
+Test case #2: mkdir dir1
+Results:
+NFS> mkdir dir1
+200 OK
+
+Test case #3: mkdir dir2
+Results:
+NFS> mkdir dir2
+200 OK
 
 
-Test case #2: 
+Test case #4: ls
+Results:
+NFS> ls
+200 OK
+dir1/ dir2/ 
 
-...
+Test case #5: cd dir1
+Results:
+NFS> cd dir1
+200 OK
+
+Test case #6: creaet file1
+Results:
+NFS> create file1
+200 OK
+
+
+Test case #7: append file1 helloworld!
+Results:
+NFS> append file1 helloworld!
+200 OK
+
+
+Test case #8: stat file1
+Results:
+NFS> stat file1
+200 OK
+Inode block: 13 Bytes in file: 11 Number of blocks: 1 First block: 14
+
+Test case #9: ls
+Results:
+NFS> ls
+200 OK
+file1 
+
+Test case #10: cat file1
+Results:
+NFS> cat file1
+200 OK
+helloworld!
+
+Test case #11: head file1 5
+Results:
+NFS> head file1 5
+200 OK
+hello
+
+Test case #12: rm file2
+Results:
+NFS> rm file2
+503 File does not exist
+
+Test case #13: cat file2
+Results:
+NFS> cat file2
+503 File does not exist
+
+Test case #14: create file1
+Results:
+NFS> create file1
+502 File exits
+
+Test case #14: create file2
+Results:
+NFS> create file2
+200 OK
+
+Test case #14: rm file1
+Results:
+NFS> rm file1
+200 OK
+
+Test case #14: ls
+Results:
+NFS> ls
+200 OK
+file2 
+
+Test case #14: home
+Results:
+NFS> home
+200 OK
+
+Test case #14: ls
+Results:
+NFS> ls
+200 OK
+dir1/ dir2/ 
+
+Test case #14: stat dir1
+Results:
+NFS> stat dir1
+200 OK
+Directory name: dir1/ Directory block: 10
+
+Test case #14: rmdir dir3
+Results:
+NFS> rmdir dir3
+503 File does not exist
+
+Test case #14: rmdir dir1
+Results:
+NFS> rmdir dir1
+507 Directory is not empty
+
+Test case #14: rmdir dir2
+Results:
+NFS> rmdir dir2
+200 OK
+
+Test case #14: ls
+Results:
+NFS> ls
+200 OK
+dir1/ 
