@@ -592,10 +592,10 @@ void FileSys::stat(const char *name)
       { // entry is a inode
         bfs.read_block(currentDirectory.dir_entries[i].block_num, (void *)&currentInode);
         respMsg += "Inode block: " + to_string(currentDirectory.dir_entries[i].block_num);
-        respMsg += " Bytes in file: " + to_string(currentInode.size);
+        respMsg += "\nBytes in file: " + to_string(currentInode.size);
         temp = (ceil(static_cast<double>(currentInode.size) / BLOCK_SIZE));
-        respMsg += " Number of blocks: " + to_string(temp);
-        respMsg += " First block: ";
+        respMsg += "\nNumber of blocks: " + to_string(temp);
+        respMsg += "\nFirst block: ";
         if (temp > 0)
         { // non-empty data file
           respMsg += to_string(currentInode.blocks[0]);
@@ -610,7 +610,7 @@ void FileSys::stat(const char *name)
         respMsg += "Directory name: ";
         respMsg += currentDirectory.dir_entries[i].name;
         respMsg += "/ ";
-        respMsg += "Directory block: ";
+        respMsg += "\nDirectory block: ";
         respMsg += to_string(currentDirectory.dir_entries[i].block_num);
       }
 
@@ -665,53 +665,9 @@ void FileSys::msg(int errorNum, string data)
 
   string temp = "\r\n";
 
-  /*
-  string outputMsg1 = "";
-  string outputMsg2 = "";
-  string outputMsg3 = "";
-  string outputMsg4 = "";
-
-  outputMsg1 = errorCode + temp; //  + "\n" + "Length: " + to_string(data.length()) + temp + "\n" + temp + "\n" + data;
-  outputMsg2 = "Length: " + to_string(data.length()) + temp + " ";
-  //outputMsg3 = temp;
-  outputMsg4 =  temp + data + " ";
-  cout << "---------------------------------------------------------------------------------------------------------------" << endl;
-  cout << "Printing... " << endl;
-  int w = write(this->fs_sock, outputMsg1.c_str(), sizeof(outputMsg1));
-  cout << "OutputMsg1: " << outputMsg1 << endl;
-  int x = write(this->fs_sock, outputMsg2.c_str(), sizeof(outputMsg2));
-  //int y = write(this->fs_sock, outputMsg3.c_str(), sizeof(outputMsg3));
-  cout << "OutputMsg2: " << outputMsg2 << endl;
-  int z = write(this->fs_sock, outputMsg4.c_str(), sizeof(outputMsg4));
-  cout << "OutputMsg3: " << outputMsg4 << endl;
-  if(w < 0 || x < 0 || z < 0){
-    perror("sending");
-    exit(-1);
-  }
-
-  memset((void *)outputMsg1.c_str(), '\0', sizeof(outputMsg1));
-  memset((void *)outputMsg2.c_str(), '\0', sizeof(outputMsg2));
-  //memset((void *)outputMsg3.c_str(), 0, sizeof(outputMsg3));
-  memset((void *)outputMsg4.c_str(), '\0', sizeof(outputMsg4));
-*/
- 
- 
   outputMsg = errorCode + temp + "Length: " + to_string(data.length()) + temp + temp + data;
   cout << outputMsg << endl;
-  
-  /*
-  char* p = (char*)&outputMsg;
-  int bytes_sent = 0;
-  while(bytes_sent < sizeof(outputMsg)) {
-    int x = write(this->fs_sock, (void*)p, sizeof(outputMsg) - bytes_sent);
-    if(x==-1 || x==0) {
-      perror("write");
-      close(this->fs_sock);
-      exit(1);
-    }
-    p += x;
-    bytes_sent += x;
-  }*/
+
   for(int i = 0; i < outputMsg.length(); i++) {
     char p = outputMsg[i];
     int bytes_sent = 0;
