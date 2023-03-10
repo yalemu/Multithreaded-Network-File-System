@@ -3,13 +3,13 @@ Team member #1: Benjamin Philipose
 Contributions:
 Main Authour of File System, worked on debugging Server.cpp and Shell.cpp
 
-Team member #3: Ryan Rao
+Team member #2: Ryan Rao
 Contributions:
-Co-Author of Server.cpp, Shell.cpp, Client.cpp, worked on debugging Server.cpp and Shell.cpp
+Co-Author of Server.cpp, Shell.cpp worked on debugging Server.cpp and Shell.cpp
 
-Team member #2: Yonnas Yalemu
+Team member #3: Yonnas Yalemu
 Contributions:
-Co-Author of Server.cpp, Shell.cpp, Client.cpp, worked on debugging Clinet.cpp, Server.cpp, Shell.cpp
+Co-Author of Server.cpp, Shell.cpp worked on debugging Server.cpp, Shell.cpp
 ...
 
 
@@ -20,7 +20,7 @@ Rating: A
 Explanation: 
 All Functions work as expected. Code is concise and clearly commented. 
 I would say that with more time there would be more helper functions to make the code more modular, 
-but aside from that the code works and functions well. Ocssionally cannot get free block, when running command again it has gotten the block.
+but aside from that the code works and functions well. .
 
 
 
