@@ -69,19 +69,11 @@ int main(int argc, char *argv[])
 
   cout << " server is listening ";
 
-  /*
-    if (accept(listen_sock, (sockaddr*) &client_addr, &addr_len) < 0) {
-      cout << "Error accepting connection" << endl;
-      close(listen_sock);
-      return;
-    }
-  */
-  bool user_quit = false;
+  bool user_quit = false; // just for return of execute_command
   string buffer;
-  // mount the file system
   while (true)
   {
-    //memset(buffer,'\0',sizeof(buffer));
+
     // assume that sock is the new socket created
     // for a TCP connection between the client and the server.
 
@@ -97,21 +89,14 @@ int main(int argc, char *argv[])
       break;
     }
     fs.mount(client_sock);
-    while (recCmd(buffer,client_sock))
+    while (recCmd(buffer, client_sock))
     {
-      //read 
-      // maxBufferSize
-    
-
-      
-      //cout << "test" << endl;
       user_quit = execute_command(buffer);
-     
 
       // close the listening socket
     }
     close(client_sock);
-  
+
     // unmout the file system
   }
 
@@ -120,45 +105,41 @@ int main(int argc, char *argv[])
   fs.unmount();
 
   return 0;
-  
 }
-bool recCmd(string &cmdStr, int sock) {
-    //int BUFFER_SIZE = 1024;
-  vector<char> response_buffer;//
+bool recCmd(string &cmdStr, int sock)
+{
+  vector<char> response_buffer; //
   char tempBuf;
   char lastBuf;
   int count = 0;
   bool isFinished = false;
-  cout << " print 1 \n";
-  while(!isFinished)  {
+  while (!isFinished)
+  {
     int bytesRec = 0;
-    cout << "print 2 \n";
-    while(bytesRec < sizeof(char)) {
-      cout << "print 3 \n";
-      int x = recv(sock, (void*)&tempBuf, sizeof(char), 0);
-      
-      if (x == 0){
+    while (bytesRec < sizeof(char))
+    {
+      int x = recv(sock, (void *)&tempBuf, sizeof(char), 0);
+      if (x == 0)
+      {
         return false;
-        
       }
-      if(x == -1) {
+      if (x == -1)
+      {
         perror("read");
         close(sock);
         exit(1);
       }
       bytesRec += x;
     }
-    if(tempBuf == '\n'  && lastBuf == '\r')  {
+    if (tempBuf == '\n' && lastBuf == '\r')
+    {
       isFinished = true;
     }
     response_buffer.push_back(tempBuf);
-    //count++;
     lastBuf = tempBuf;
-
-   }
-    cmdStr = string(response_buffer.begin(), response_buffer.end());
-    return true;
- 
+  }
+  cmdStr = string(response_buffer.begin(), response_buffer.end());
+  return true;
 }
 bool execute_command(string command_str)
 {
