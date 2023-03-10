@@ -104,17 +104,17 @@ int main(int argc, char *argv[])
     
 
       
-      // cout << "test" << endl;
+      //cout << "test" << endl;
       user_quit = execute_command(buffer);
-      //memset(buffer,'\0', BUFFER_SIZE);
+     
 
       // close the listening socket
     }
-      close(client_sock);
+    close(client_sock);
   
     // unmout the file system
-    fs.unmount();
   }
+
   close(sock);
 
   fs.unmount();
@@ -129,10 +129,18 @@ bool recCmd(string &cmdStr, int sock) {
   char lastBuf;
   int count = 0;
   bool isFinished = false;
+  cout << " print 1 \n";
   while(!isFinished)  {
     int bytesRec = 0;
+    cout << "print 2 \n";
     while(bytesRec < sizeof(char)) {
+      cout << "print 3 \n";
       int x = recv(sock, (void*)&tempBuf, sizeof(char), 0);
+      
+      if (x == 0){
+        return false;
+        
+      }
       if(x == -1) {
         perror("read");
         close(sock);
