@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
+#include <thread>
 #include <sstream>
 #include <vector>
 
@@ -28,9 +29,10 @@ struct Command
 
 sockaddr_in get_server_addr(in_port_t port);
 Command parse_command(string command_str);
-bool execute_command(string command_str);
+bool execute_command(string command_str, FileSys &fs);
 bool recCmd(string &cmdStr, int sock);
-FileSys fs;
+void handle_client(int client_socket);
+//FileSys fs;
 
 int main(int argc, char *argv[])
 {
@@ -86,26 +88,35 @@ int main(int argc, char *argv[])
     if (client_sock < 0)
     {
       perror("Error accepting connection");
-      break;
+      continue;
     }
-    fs.mount(client_sock);
-    while (recCmd(buffer, client_sock))
-    {
-      user_quit = execute_command(buffer);
-
-      // close the listening socket
-    }
-    close(client_sock);
-
+    thread client_thread(handle_client, client_sock);
+    client_thread.detach();
+    
     // unmout the file system
   }
 
   close(sock);
 
-  fs.unmount();
+  //fs.unmount();
 
   return 0;
 }
+
+void handle_client(int client_socket)
+{
+  FileSys fs;
+  fs.mount(client_socket);
+  string buffer;
+  while (recCmd(buffer,client_socket))
+  {
+    if (execute_command(buffer,fs))
+      break;
+  }
+  fs.unmount();
+  close(client_socket);
+}
+
 bool recCmd(string &cmdStr, int sock)
 {
   vector<char> response_buffer; //
@@ -126,8 +137,7 @@ bool recCmd(string &cmdStr, int sock)
       if (x == -1)
       {
         perror("read");
-        close(sock);
-        exit(1);
+        return false;
       }
       bytesRec += x;
     }
@@ -141,7 +151,7 @@ bool recCmd(string &cmdStr, int sock)
   cmdStr = string(response_buffer.begin(), response_buffer.end());
   return true;
 }
-bool execute_command(string command_str)
+bool execute_command(string command_str, FileSys &fs)
 {
   // parse the command line
   struct Command command = parse_command(command_str);
